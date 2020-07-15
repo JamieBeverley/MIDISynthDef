@@ -58,7 +58,9 @@ MIDISynthDef : SynthDef{
 		var synth = this.synths[num];
 		var params = this.synthParams.copy();
 		this.stopNote(num);
-		this.noteQueue = this.noteQueue.addFirst(num);
+		if(this.noteQueue.includes(num).not,{
+			this.noteQueue = this.noteQueue.addFirst(num);
+		});
 		while({this.noteQueue.size > this.polyphony}, {
 			this.stopNote(this.noteQueue.pop());
 		});
