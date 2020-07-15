@@ -71,7 +71,7 @@ MIDISynthDef : SynthDef{
 		|num|
 		var synth = this.synths[num];
 		if(synth.notNil, {
-			synth.set(\gate,0);
+			synth.get(\gate, {synth.set(\gate,0)});
 		});
 		this.synths[num] = nil;
 	}
@@ -81,12 +81,6 @@ MIDISynthDef : SynthDef{
 			|val, num, chan, src|
 			if(this.verbose,{[val, num, chan, src].postln;});
 			this.playNote(num);
-			// var synth = this.synths[num];
-			// num.postln;
-			// if(synth.notNil && synth.isPlaying, {
-			// 	synth.set(\gate,0);
-			// });
-			// this.synths[num] = Synth(this.name,[freq: num.midicps, gate:1]);
 		}
 	}
 
@@ -95,10 +89,6 @@ MIDISynthDef : SynthDef{
 			|val, num, chan, src|
 			if(this.verbose,{[val, num, chan, src].postln;});
 			this.stopNote(num);
-			// var synth = this.synths[num];
-			// if(synth.notNil || synth.isPlaying, {
-			// 	synth.set(\gate,0);
-			// });
 		}
 	}
 
