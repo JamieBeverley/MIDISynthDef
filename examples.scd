@@ -44,3 +44,61 @@ MIDISynthDef(\fm_pad,
 		27: [\lfo, {|x| (x/127)*5}],
 		28: [\lfoDepth, {|x| ((x/127)*8)}]
 )).add(1);
+
+
+MIDISynthDef(\reveb_stab,
+	{
+		|amp=0.1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, gate=1, lpf=22000, reverb=0.05, out=0|
+		var audio = Mix.ar(Saw.ar(freq*([0,0.01,7,7.01,10,14,14.01].midiratio),mul:amp*(-18.dbamp)));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,0.5);
+
+		z = DelayN.ar(audio, 0.048);
+		// 7 length modulated comb delays in parallel :
+		y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15) }));
+		// two parallel chains of 4 allpass delays (8 total) :
+		4.do({ y = AllpassN.ar(y, 0.050, [0.050.rand, 0.050.rand], 1) });
+		// add original sound to reverb and play it :
+		audio = audio+(reverb*y);
+
+		Out.ar(0,Pan2.ar(audio*env));
+	}, permanent:true,polyphony:1, verbose:true,
+	midiMap:(
+		21: [\amp, {|x| x/127}],
+		22: [\attack, {|x| x*2/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*4/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+		27: [\reverb, {|x| (x/127).pow(2)*0.3}],
+		28: [\lfoDepth, {|x| ((x/127).pow(3))*22000*0.5 }]
+)).add(2);
+
+MIDISynthDef(\delay_stab,
+	{
+		|amp=0.1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, gate=1, lpf=22000, delayTime=0.25, out=0|
+		var audio = Mix.ar(SinOsc.ar(freq*([0,0.01,4,4.01,7,11,11.01].midiratio),mul:amp*(-18.dbamp)));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,0.5);
+
+		audio = audio + CombC.ar(
+			audio,
+			1,
+			delayTime,
+			8
+		);
+
+		Out.ar(0,Pan2.ar(audio*env));
+	}, permanent:true,polyphony:1, verbose:true,
+	midiMap:(
+		21: [\amp, {|x| x/127}],
+		22: [\attack, {|x| x*2/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*4/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+		27: [\delayTime, {|x| (x/127)}],
+		28: [\lfoDepth, {|x| ((x/127).pow(3))*22000*0.5 }]
+)).add(3);
