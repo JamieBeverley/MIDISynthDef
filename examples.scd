@@ -102,3 +102,32 @@ MIDISynthDef(\delay_stab,
 		27: [\delayTime, {|x| (x/127)}],
 		28: [\lfoDepth, {|x| ((x/127).pow(3))*22000*0.5 }]
 )).add(3);
+
+MIDISynthDef(\reverb_pad,
+	{
+		|amp=0.1, attack=2, decay=0.7, sustain=1, release=4, freq=440, gate=1, lpf=800, lpfq=0.5, out=0, reverb= 0.04|
+		var audio = Mix.ar(Saw.ar(freq*([1,1.01,1.02,1.03]),mul:amp*(-10.dbamp)));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		var z,y;
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,lpfq   );
+		
+		z = DelayN.ar(audio, 0.048);
+		// 7 length modulated comb delays in parallel :
+		y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15) }));
+		// two parallel chains of 4 allpass delays (8 total) :
+		3.do({ y = AllpassN.ar(y, 0.05, [0.05.rand, 0.05.rand], 0.5) });
+		// add original sound to reverb and play it :
+		audio = audio+(reverb*y);
+		Out.ar(0,Pan2.ar(audio*env));
+	}, permanent:true,polyphony:16, verbose:true,
+	midiMap:(
+		21: [\amp, {|x| x/127}],
+		22: [\attack, {|x| x*4/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*8/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+		27: [\lpfq, {|x| (1-(x/127)).clip(0.05,1)}],
+		28: [\reverb, {|x| (x/127).pow(2)*0.3}]
+)).add(4);
