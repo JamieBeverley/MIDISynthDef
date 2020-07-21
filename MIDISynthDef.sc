@@ -3,45 +3,50 @@ MIDISynthDef : SynthDef{
 	var <>ccMap;
 	var <>permanent;
 	var <>synths;
-	var <>midiNoteOn;
-	var <>midiNoteOff;
-	var <>midiCC;
+	var <>midiNoteOns;
+	var <>midiNoteOffs;
+	var <>midiCCs;
 	var <>noteQueue;
 	var <>polyphony;
 	var <>verbose;
 	var <>synthParams;
-	var <>midiSrcId;
+	var <>midiSrcIds;
 
 	*initClass{
 		MIDISynthDef.loaded = Dictionary.new();
 	}
 
 	*new {
-		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcId, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcIds, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
 		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata).init();
-		^a.init(ccMap, polyphony, midiSrcId, permanent, verbose);
+		^a.init(ccMap, polyphony, midiSrcIds, permanent, verbose);
 	}
 
 	init {
-		|ccMap,polyphony, midiSrcId, permanent, verbose|
+		|ccMap,polyphony, midiSrcIds, permanent, verbose|
 		this.synths = Dictionary.new(127);
 		if(ccMap.isNil, {ccMap = ()});
 		this.ccMap = ccMap;
 		this.polyphony = polyphony;
 		this.permanent = permanent;
 		this.noteQueue = [];
-		this.midiSrcId = midiSrcId;
+		this.midiSrcIds = if(midiSrcIds.isArray,{midiSrcIds},{[midiSrcIds]});
 		this.verbose = verbose;
 		this.synthParams = Dictionary.new();
+		this.midiNoteOns = Dictionary.new();
+		this.midiNoteOffs = Dictionary.new();
+		this.midiCCs = Dictionary.new();
 	}
 
 	removeMidi{
-		this.midiNoteOn.permanent_(false);
-		this.midiNoteOn.free;
-		this.midiNoteOff.permanent_(false);
-		this.midiNoteOff.free;
-		this.midiCC.permanent_(false);
-		this.midiCC.free;
+		var freeFunc = {
+			|i|
+			i.permanent_(false);
+			i.free;
+		};
+		this.midiNoteOns.do(freeFunc);
+		this.midiNoteOffs.do(freeFunc);
+		this.midiCCs.do(freeFunc);
 	}
 
 	add {
@@ -126,8 +131,11 @@ MIDISynthDef : SynthDef{
 
 	midi {
 		|midiChan|
-		this.midiNoteOn = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
-		this.midiNoteOff = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
-		this.midiCC = MIDIFunc.cc(this.cc, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
+		this.midiSrcIds.do{
+			|id|
+			this.midiNoteOns[id] = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: id).permanent_(this.permanent);
+			this.midiNoteOffs[id] = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: id).permanent_(this.permanent);
+			this.midiCCs[id] = MIDIFunc.cc(this.cc, chan:midiChan, srcID: id).permanent_(this.permanent);
+		};
 	}
 }
