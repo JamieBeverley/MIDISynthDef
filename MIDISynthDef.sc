@@ -1,6 +1,6 @@
 MIDISynthDef : SynthDef{
 	classvar <>loaded;
-	var <>midiMap;
+	var <>ccMap;
 	var <>permanent;
 	var <>synths;
 	var <>midiNoteOn;
@@ -10,25 +10,27 @@ MIDISynthDef : SynthDef{
 	var <>polyphony;
 	var <>verbose;
 	var <>synthParams;
+	var <>midiSrcId;
 
 	*initClass{
 		MIDISynthDef.loaded = Dictionary.new();
 	}
 
 	*new {
-		|name,ugenGraphFunc,midiMap,polyphony=inf,permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcId, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
 		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata).init();
-		^a.init(midiMap, polyphony, permanent, verbose);
+		^a.init(ccMap, polyphony, midiSrcId, permanent, verbose);
 	}
 
 	init {
-		|midiMap,polyphony, permanent, verbose|
+		|ccMap,polyphony, midiSrcId, permanent, verbose|
 		this.synths = Dictionary.new(127);
-		if(midiMap.isNil, {midiMap = ()});
-		this.midiMap = midiMap;
+		if(ccMap.isNil, {ccMap = ()});
+		this.ccMap = ccMap;
 		this.polyphony = polyphony;
 		this.permanent = permanent;
 		this.noteQueue = [];
+		this.midiSrcId = midiSrcId;
 		this.verbose = verbose;
 		this.synthParams = Dictionary.new();
 	}
@@ -97,7 +99,7 @@ MIDISynthDef : SynthDef{
 	cc {
 		^{
 			|val,num,chan,src|
-			var spec = this.midiMap[num];
+			var spec = this.ccMap[num];
 			if(this.verbose,{[val, num, chan, src].postln;});
 			if(spec.notNil,{
 				var param, mappedValue;
@@ -124,8 +126,8 @@ MIDISynthDef : SynthDef{
 
 	midi {
 		|midiChan|
-		this.midiNoteOn = MIDIFunc.noteOn(this.noteOn, chan:midiChan).permanent_(this.permanent);
-		this.midiNoteOff = MIDIFunc.noteOff(this.noteOff, chan:midiChan).permanent_(this.permanent);
-		this.midiCC = MIDIFunc.cc(this.cc, chan:midiChan).permanent_(this.permanent);
+		this.midiNoteOn = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
+		this.midiNoteOff = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
+		this.midiCC = MIDIFunc.cc(this.cc, chan:midiChan, srcID: this.midiSrcId).permanent_(this.permanent);
 	}
 }

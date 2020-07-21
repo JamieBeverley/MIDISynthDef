@@ -11,7 +11,7 @@ MIDISynthDef(\stabc,
 		out = Pan2.ar(audio*env);
 		Out.ar(0,out);
 	}, permanent:true,polyphony:1, verbose:true,
-	midiMap:(
+	ccMap:(
 		21: [\amp, {|x| x/127}],
 		22: [\attack, {|x| x*2/127 }],
 		23: [\decay, {|x| x/127 }],
@@ -34,7 +34,7 @@ MIDISynthDef(\fm_pad,
 		out = Pan2.ar(audio*env);
 		Out.ar(0,out);
 	}, permanent:true,polyphony:8, verbose:true,
-	midiMap:(
+	ccMap:(
 		21: [\amp, {|x| x/127}],
 		22: [\attack, {|x| x*2/127 }],
 		23: [\decay, {|x| x/127 }],
@@ -64,7 +64,7 @@ MIDISynthDef(\reveb_stab,
 
 		Out.ar(0,Pan2.ar(audio*env));
 	}, permanent:true,polyphony:1, verbose:true,
-	midiMap:(
+	ccMap:(
 		21: [\amp, {|x| x/127}],
 		22: [\attack, {|x| x*2/127 }],
 		23: [\decay, {|x| x/127 }],
@@ -92,7 +92,7 @@ MIDISynthDef(\delay_stab,
 
 		Out.ar(0,Pan2.ar(audio*env));
 	}, permanent:true,polyphony:1, verbose:true,
-	midiMap:(
+	ccMap:(
 		21: [\amp, {|x| x/127}],
 		22: [\attack, {|x| x*2/127 }],
 		23: [\decay, {|x| x/127 }],
@@ -111,7 +111,7 @@ MIDISynthDef(\reverb_pad,
 		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
 		var z,y;
 		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,lpfq   );
-		
+
 		z = DelayN.ar(audio, 0.048);
 		// 7 length modulated comb delays in parallel :
 		y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15) }));
@@ -121,7 +121,7 @@ MIDISynthDef(\reverb_pad,
 		audio = audio+(reverb*y);
 		Out.ar(0,Pan2.ar(audio*env));
 	}, permanent:true,polyphony:16, verbose:true,
-	midiMap:(
+	ccMap:(
 		21: [\amp, {|x| x/127}],
 		22: [\attack, {|x| x*4/127 }],
 		23: [\decay, {|x| x/127 }],
