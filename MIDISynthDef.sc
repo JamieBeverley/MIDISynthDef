@@ -17,7 +17,7 @@ MIDISynthDef : SynthDef{
 	}
 
 	*new {
-		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcIds, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
 		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata).init();
 		^a.init(ccMap, polyphony, midiSrcIds, permanent, verbose);
 	}
@@ -133,9 +133,9 @@ MIDISynthDef : SynthDef{
 		|midiChan|
 		this.midiSrcIds.do{
 			|id|
-			this.midiNoteOns[id] = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: id).permanent_(this.permanent);
-			this.midiNoteOffs[id] = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: id).permanent_(this.permanent);
-			this.midiCCs[id] = MIDIFunc.cc(this.cc, chan:midiChan, srcID: id).permanent_(this.permanent);
+			this.midiNoteOns[id.asSymbol] = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: id).permanent_(this.permanent);
+			this.midiNoteOffs[id.asSymbol] = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: id).permanent_(this.permanent);
+			this.midiCCs[id.asSymbol] = MIDIFunc.cc(this.cc, chan:midiChan, srcID: id).permanent_(this.permanent);
 		};
 	}
 }
