@@ -18,11 +18,11 @@ MIDISynthDef : SynthDef{
 
 	*new {
 		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
-		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata).init();
-		^a.init(ccMap, polyphony, midiSrcIds, permanent, verbose);
+		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata);
+		^a.initMIDISynthDef(ccMap, polyphony, midiSrcIds, permanent, verbose);
 	}
 
-	init {
+	initMIDISynthDef {
 		|ccMap,polyphony, midiSrcIds, permanent, verbose|
 		this.synths = Dictionary.new(127);
 		if(ccMap.isNil, {ccMap = ()});
@@ -38,7 +38,7 @@ MIDISynthDef : SynthDef{
 		this.midiCCs = Dictionary.new();
 	}
 
-	removeMidi{
+	remove{
 		var freeFunc = {
 			|i|
 			i.permanent_(false);
@@ -53,7 +53,7 @@ MIDISynthDef : SynthDef{
 		|midiChan, libname, completionMsg, keepDef|
 		var existing = MIDISynthDef.loaded[this.name];
 		if(existing.notNil, {
-			existing.removeMidi();
+			existing.remove();
 		});
 		MIDISynthDef.loaded[this.name] = this;
 		super.add();
@@ -88,7 +88,7 @@ MIDISynthDef : SynthDef{
 	noteOn{
 		^ {
 			|val, num, chan, src|
-			if(this.verbose,{[val, num, chan, src].postln;});
+			if(this.verbose,{[\noteOn, val, num, chan, src].postln;});
 			this.playNote(num);
 		}
 	}
@@ -96,7 +96,7 @@ MIDISynthDef : SynthDef{
 	noteOff{
 		^{
 			|val, num, chan, src|
-			if(this.verbose,{[val, num, chan, src].postln;});
+			if(this.verbose,{[\noteOff, val, num, chan, src].postln;});
 			this.stopNote(num);
 		}
 	}
@@ -105,10 +105,8 @@ MIDISynthDef : SynthDef{
 		^{
 			|val,num,chan,src|
 			var spec = this.ccMap[num];
-			if(this.verbose,{[val, num, chan, src].postln;});
 			if(spec.notNil,{
 				var param, mappedValue;
-				spec.isArray.postln;
 				if(spec.isArray,{
 					param = spec[0];
 					mappedValue = spec[1].value(val);
@@ -120,11 +118,11 @@ MIDISynthDef : SynthDef{
 					|i|
 					var synth = this.synths[i];
 					if(synth.notNil, {
-						[\set, param, mappedValue].postln;
 						synth.set(param, mappedValue);
 					});
 				});
 				this.synthParams[param] = mappedValue;
+				if(this.verbose,{["CC", param, mappedValue].postln;});
 			});
 		}
 	}
@@ -136,6 +134,97 @@ MIDISynthDef : SynthDef{
 			this.midiNoteOns[id.asSymbol] = MIDIFunc.noteOn(this.noteOn, chan:midiChan, srcID: id).permanent_(this.permanent);
 			this.midiNoteOffs[id.asSymbol] = MIDIFunc.noteOff(this.noteOff, chan:midiChan, srcID: id).permanent_(this.permanent);
 			this.midiCCs[id.asSymbol] = MIDIFunc.cc(this.cc, chan:midiChan, srcID: id).permanent_(this.permanent);
+		};
+	}
+}
+
+
+MIDISynthDefFX : MIDISynthDef {
+	classvar <>loaded;
+	var <>fxBus;
+	var <>fxCCMap;
+	var <>fxNdef;
+	var <>numChannels;
+	var <>server;
+	var <>midiFxCCs;
+	var <>cmdPFunc;
+
+	*initClass{
+		MIDISynthDefFX.loaded = Dictionary.new();
+	}
+
+	*new {
+		|name, ugenGraphFunc, ccMap, fxGraphFunc, fxCCMap=2, server, numChannels=2, polyphony=inf, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		var a = super.new(name, ugenGraphFunc,ccMap, polyphony, midiSrcIds, permanent, verbose, rates, prependArgs, variants, metadata);
+		^a.initMIDISynthDefFX(fxGraphFunc, fxCCMap, server, numChannels);
+	}
+
+	initMIDISynthDefFX {
+		|fxGraphFunc, fxCCMap, server, numChannels|
+		this.fxCCMap = fxCCMap;
+		this.numChannels = numChannels;
+		this.server = server;
+		this.fxBus = Bus.audio(this.server, this.numChannels);
+		this.fxNdef = Ndef(this.name++\_fx, fxGraphFunc);
+		this.fxNdef.set(\in, this.fxBus);
+		this.cmdPFunc = if(this.permanent, {{this.fxNdef.play}}, {{}});
+		this.synthParams[\out] = this.fxBus;
+		this.midiFxCCs = Dictionary.new();
+	}
+
+	add {
+		|midiChan, libname, completionMsg, keepDef|
+		var existing;
+		super.add(midiChan, libname, completionMsg, keepDef);
+
+		existing = MIDISynthDefFX.loaded[this.name];
+		if(existing.notNil, {
+			existing.remove();
+		});
+		MIDISynthDefFX.loaded[this.name] = this;
+		// this.midi(midiChan);
+		// existing = MIDISynthDefFX.loaded[this.name];
+		this.fxNdef.play;
+		if(this.permanent, {CmdPeriod.add(this.cmdPFunc)});
+	}
+
+	remove {
+		super.remove();
+		this.midiFxCCs.do({
+			|i|
+			i.permanent_(false);
+			i.free;
+		});
+		this.fxNdef.free;
+		CmdPeriod.remove(this.cmdPFunc);
+	}
+
+	fxCC{
+		^{
+			|val,num,chan,src|
+			var spec;
+			spec = this.fxCCMap[num];
+			if(spec.notNil, {
+				var param, mappedValue;
+				if(spec.isArray,{
+					param = spec[0];
+					mappedValue = spec[1].value(val);
+				}, {
+					param = spec;
+					mappedValue = val;
+				});
+				if(this.verbose,{["fxCC", param, mappedValue].postln;});
+				this.fxNdef.set(param, mappedValue);
+			});
+		}
+	}
+
+	midi{
+		|midiChan|
+		super.midi(midiChan);
+		this.midiSrcIds.do{
+			|id|
+			this.midiFxCCs[id.asSymbol] = MIDIFunc.cc(this.fxCC, chan:midiChan, srcID: id).permanent_(this.permanent);
 		};
 	}
 }

@@ -131,3 +131,46 @@ MIDISynthDef(\reverb_pad,
 		27: [\lpfq, {|x| (1-(x/127)).clip(0.05,1)}],
 		28: [\reverb, {|x| (x/127).pow(2)*0.3}]
 )).add(4);
+
+MIDISynthDefFX.new(
+	name:\reverb_stab,
+	ugenGraphFunc:{
+		|amp=0.1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, gate=1, lpf=22000, reverb=0.05, out=0|
+		var audio = Mix.ar(Saw.ar(freq*([0,0.01,7,7.01,10,14,14.01].midiratio),mul:amp*(-18.dbamp)));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,0.5);
+		Out.ar(out, Pan2.ar(audio*env));
+	},
+	fxGraphFunc:{
+		|in, reverb=0.2, delayTime=0.33|
+
+		var z,y, dry, audio, delay;
+		dry = In.ar(in, 2);
+
+		// Delay
+		audio = dry + CombC.ar(in:dry,maxdelaytime:1,delaytime:delayTime,decaytime:2);
+
+		// Reverb
+		z = DelayN.ar(audio, 0.048);
+		y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15) }));
+		4.do({ y = AllpassN.ar(y, 0.050, [0.050.rand, 0.050.rand], 1) });
+		audio = audio+(reverb*y);
+		audio;
+	},
+	ccMap:(
+		21: [\amp, {|x| x/127}],
+		22: [\attack, {|x| x*2/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*4/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+	),
+	fxCCMap:(
+		27: [\reverb, {|x| (x/127).pow(2)*0.3}],
+		28: [\delayTime, {|x| (x/127).clip(1/32,1)}]
+	),
+	permanent:true,
+	polyphony:1,
+	verbose:true
+).add(midiChan: 5);
