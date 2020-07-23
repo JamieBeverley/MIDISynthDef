@@ -108,4 +108,22 @@ MIDISynthDefFX.new(
 ).add(midiChan: 2);
 ```
 
+### Portamento
+MIDISynthDef takes a `portamento` boolean. With `portamento=true`, when all voices are full (which depends on`polyphony`) and a new note is played, the `\freq` paraeter for the most recently played note is set to the new note. You can implement a glide duration using `Lag.kr` or something similar in the ugenGraphFunc.
+eg:
+```
+MIDISynthDef(\portamento_chord,
+	{
+		|out=0, amp=0.1,  gate=1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, glide=1, lpf=10000,lpfRq=0.5|
+		var freqGlide = Lag.kr(freq, glide);  // interpolate between old and new freq over 'glide' seconds
+		var audio = Saw.ar(freq: freqGlide, mul:amp);
+
+		...		
+	},
+	polyphony:1,
+	portamento:true,
+	...
+);
+```
+
 *** see `examples.scd` for more help, or get in touch! ***

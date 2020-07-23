@@ -234,3 +234,47 @@ MIDISynthDefFX(
 	verbose:true
 ).add(midiChan: 6);
 );
+
+MIDISynthDefFX(\portamento_chord,
+	{
+		|out=0, amp=0.1,  gate=1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, glide=1, lpf=10000,lpfRq=0.5|
+		// Use Lag to adjust duration between notes.
+		var freqGlide = Lag.kr(freq, glide);
+		var audio = Mix.ar(Saw.ar(freqGlide*([0,0.01,4,4.01,7,11,11.01].midiratio),mul:amp*(-18.dbamp)));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,lpfRq);
+
+		Out.ar(out,Pan2.ar(audio*env));
+	},
+	fxGraphFunc:{
+		|in, reverb=0.005|
+		var z,y, dry, audio;
+		dry = In.ar(in, 2);
+		audio = dry;
+
+		// Reverb
+		z = DelayN.ar(audio, 0.048);
+		y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15) }));
+		4.do({ y = AllpassN.ar(y, 0.050, [0.050.rand, 0.050.rand], 1) });
+		audio = audio+(reverb*y);
+		audio;
+	},
+	permanent:true,
+	polyphony:1,
+	verbose:true,
+	midiSrcIds: nil,
+	portamento:true,
+	ccMap: (
+		21: [\amp, {|x| x/127}],
+		22: [\attack, {|x| x*2/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*4/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+		27: [\glide, {|x| ((x*2/127)) }]
+	),
+	fxCCMap: (
+		28: [\reverb, {|x| (x/127).pow(2)*0.2 }]
+	)
+).add(7);

@@ -11,27 +11,30 @@ MIDISynthDef : SynthDef{
 	var <>verbose;
 	var <>synthParams;
 	var <>midiSrcIds;
+	var <>portamento;
 
 	*initClass{
 		MIDISynthDef.loaded = Dictionary.new();
 	}
 
 	*new {
-		|name,ugenGraphFunc,ccMap, polyphony=inf, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		|name,ugenGraphFunc,ccMap, polyphony=inf, portamento=false, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
 		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata);
-		^a.initMIDISynthDef(ccMap, polyphony, midiSrcIds, permanent, verbose);
+		^a.initMIDISynthDef(ccMap, polyphony, portamento, midiSrcIds, permanent, verbose);
 	}
 
 	initMIDISynthDef {
-		|ccMap,polyphony, midiSrcIds, permanent, verbose|
-		this.synths = Dictionary.new(127);
+		|ccMap, polyphony, portamento, midiSrcIds, permanent, verbose|
 		if(ccMap.isNil, {ccMap = ()});
 		this.ccMap = ccMap;
 		this.polyphony = polyphony;
-		this.permanent = permanent;
-		this.noteQueue = [];
+		this.portamento = portamento;
 		this.midiSrcIds = if(midiSrcIds.isArray,{midiSrcIds},{[midiSrcIds]});
+		this.permanent = permanent;
 		this.verbose = verbose;
+
+		this.noteQueue = [];
+		this.synths = Dictionary.new(127);
 		this.synthParams = Dictionary.new();
 		this.midiNoteOns = Dictionary.new();
 		this.midiNoteOffs = Dictionary.new();
@@ -60,6 +63,24 @@ MIDISynthDef : SynthDef{
 		this.midi(midiChan);
 	}
 
+	playNotePortamento {
+		|num|
+		var synth = this.synths[num];
+		var params = this.synthParams.copy();
+		var noteFrom = this.noteQueue[0];
+		// If most recent note exists and is playing, glide it to num.
+		// Otherwise just play note as normal.
+		if(noteFrom.notNil && this.synths[noteFrom].notNil && (this.noteQueue.size >= this.polyphony),{
+			this.stopNote(num);
+			this.synths[num] = this.synths[noteFrom];
+			this.synths[num].set(\freq, num.midicps);
+			this.synths[noteFrom] = nil;
+			this.noteQueue[0] = num;
+		}, {
+			this.playNote(num);
+		});
+	}
+
 	playNote {
 		|num|
 		var synth = this.synths[num];
@@ -82,6 +103,7 @@ MIDISynthDef : SynthDef{
 		if(synth.notNil, {
 			synth.get(\gate, {synth.set(\gate,0)});
 		});
+		this.noteQueue.remove(num);
 		this.synths[num] = nil;
 	}
 
@@ -89,7 +111,7 @@ MIDISynthDef : SynthDef{
 		^ {
 			|val, num, chan, src|
 			if(this.verbose,{[\noteOn, val, num, chan, src].postln;});
-			this.playNote(num);
+			if(this.portamento,{this.playNotePortamento(num)},{this.playNote(num)});
 		}
 	}
 
@@ -154,8 +176,8 @@ MIDISynthDefFX : MIDISynthDef {
 	}
 
 	*new {
-		|name, ugenGraphFunc, ccMap, fxGraphFunc, fxCCMap=2, server, numChannels=2, polyphony=inf, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
-		var a = super.new(name, ugenGraphFunc,ccMap, polyphony, midiSrcIds, permanent, verbose, rates, prependArgs, variants, metadata);
+		|name, ugenGraphFunc, ccMap, fxGraphFunc, fxCCMap=2, server, numChannels=2, polyphony=inf, portamento=false, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		var a = super.new(name, ugenGraphFunc,ccMap, polyphony, portamento, midiSrcIds, permanent, verbose, rates, prependArgs, variants, metadata);
 		^a.initMIDISynthDefFX(fxGraphFunc, fxCCMap, server, numChannels);
 	}
 
