@@ -126,4 +126,14 @@ MIDISynthDef(\portamento_chord,
 );
 ```
 
+### Velocity Sensitive
+By default MIDISynthDefs are not velocity-sensitive. If the `velocityToAmp` parameter is provided a function, each noteOn message will use this function to map the midi velocity to the synth's `amp` parameter.
+Eg:
+```
+MIDISynthDef(
+	...
+	velocityToAmp: {|vel| (vel/127) * (-20.dbamp) }
+	...
+	)
+```
 *** see `examples.scd` for more help, or get in touch! ***

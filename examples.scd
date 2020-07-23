@@ -278,3 +278,31 @@ MIDISynthDefFX(\portamento_chord,
 		28: [\reverb, {|x| (x/127).pow(2)*0.2 }]
 	)
 ).add(7);
+
+MIDISynthDef(\velocity_sensitive,
+	{
+		|out=0, amp=0.1, gain=1,  gate=1, attack=0.01, decay=0.3, sustain=0.5, release=1, freq=440, glide=1, lpf=10000,lpfRq=0.5|
+		var freqGlide = Lag.kr(freq, glide);
+		var audio = Mix.ar(Saw.ar(freqGlide*([0,0.01,4,4.01,7,11,11.01].midiratio),mul:amp*(-18.dbamp)*gain));
+		var lpfEnv = EnvGen.kr(Env.adsr(attack,decay,sustain.pow(4),release), gate);
+		var env = EnvGen.ar(Env.asr(0.001,sustainLevel:1,releaseTime:release),gate:gate,doneAction:2);
+		audio = RLPF.ar(audio, (lpf*lpfEnv)+5,lpfRq);
+
+		Out.ar(out,Pan2.ar(audio*env));
+	},
+	polyphony:1,
+	portamento:true,
+	// Velocity of MIDI noteOn is mapped w/ function provided here, and then passed to the synth's 'amp' param
+	// Eg: map to 0-1 range, pow(1/2) to squash range a bit, and multiply by -20dbs.
+	velocityToAmp: {|vel| (vel/127).pow(1/2)*(-20.dbamp)},
+	verbose:true,
+	ccMap: (
+		21: [\gain, {|x| (x*2/127)}],
+		22: [\attack, {|x| x*2/127 }],
+		23: [\decay, {|x| x/127 }],
+		24: [\sustain, {|x| x/127 }],
+		25: [\release, {|x| x*4/127 }],
+		26: [\lpf, {|x| ((x/127).pow(3)*22000) }],
+		27: [\glide, {|x| ((x*2/127)) }]
+	)
+).add(8);

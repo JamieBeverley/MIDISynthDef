@@ -12,23 +12,26 @@ MIDISynthDef : SynthDef{
 	var <>synthParams;
 	var <>midiSrcIds;
 	var <>portamento;
+	var <>velocityToAmp;
 
 	*initClass{
 		MIDISynthDef.loaded = Dictionary.new();
 	}
 
 	*new {
-		|name,ugenGraphFunc,ccMap, polyphony=inf, portamento=false, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		|name,ugenGraphFunc,ccMap, polyphony=inf, portamento=false, velocityToAmp=nil, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
 		var a = super.new(name,ugenGraphFunc,rates,prependArgs,variants,metadata);
-		^a.initMIDISynthDef(ccMap, polyphony, portamento, midiSrcIds, permanent, verbose);
+		^a.initMIDISynthDef(ccMap, polyphony, portamento, velocityToAmp, midiSrcIds, permanent, verbose);
 	}
 
 	initMIDISynthDef {
-		|ccMap, polyphony, portamento, midiSrcIds, permanent, verbose|
+		|ccMap, polyphony, portamento, velocityToAmp, midiSrcIds, permanent, verbose|
 		if(ccMap.isNil, {ccMap = ()});
 		this.ccMap = ccMap;
 		this.polyphony = polyphony;
 		this.portamento = portamento;
+		this.velocityToAmp = velocityToAmp;
+
 		this.midiSrcIds = if(midiSrcIds.isArray,{midiSrcIds},{[midiSrcIds]});
 		this.permanent = permanent;
 		this.verbose = verbose;
@@ -64,7 +67,7 @@ MIDISynthDef : SynthDef{
 	}
 
 	playNotePortamento {
-		|num|
+		|num, vel|
 		var synth = this.synths[num];
 		var params = this.synthParams.copy();
 		var noteFrom = this.noteQueue[0];
@@ -77,12 +80,12 @@ MIDISynthDef : SynthDef{
 			this.synths[noteFrom] = nil;
 			this.noteQueue[0] = num;
 		}, {
-			this.playNote(num);
+			this.playNote(num, vel);
 		});
 	}
 
 	playNote {
-		|num|
+		|num, vel|
 		var synth = this.synths[num];
 		var params = this.synthParams.copy();
 		this.stopNote(num);
@@ -92,6 +95,7 @@ MIDISynthDef : SynthDef{
 		while({this.noteQueue.size > this.polyphony}, {
 			this.stopNote(this.noteQueue.pop());
 		});
+		if(this.velocityToAmp.notNil,{params['amp'] = this.velocityToAmp.value(vel)});
 		params['freq'] = num.midicps;
 		params['gate'] = 1;
 		this.synths[num] = Synth(this.name, params.asKeyValuePairs);
@@ -111,7 +115,7 @@ MIDISynthDef : SynthDef{
 		^ {
 			|val, num, chan, src|
 			if(this.verbose,{[\noteOn, val, num, chan, src].postln;});
-			if(this.portamento,{this.playNotePortamento(num)},{this.playNote(num)});
+			if(this.portamento,{this.playNotePortamento(num, val)},{this.playNote(num, val)});
 		}
 	}
 
@@ -176,8 +180,8 @@ MIDISynthDefFX : MIDISynthDef {
 	}
 
 	*new {
-		|name, ugenGraphFunc, ccMap, fxGraphFunc, fxCCMap=2, server, numChannels=2, polyphony=inf, portamento=false, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
-		var a = super.new(name, ugenGraphFunc,ccMap, polyphony, portamento, midiSrcIds, permanent, verbose, rates, prependArgs, variants, metadata);
+		|name, ugenGraphFunc, ccMap, fxGraphFunc, fxCCMap=2, server, numChannels=2, polyphony=inf, portamento=false, velocityToAmp=nil, midiSrcIds=nil, permanent=true, verbose=false,rates,prependArgs,variants,metadata|
+		var a = super.new(name, ugenGraphFunc,ccMap, polyphony, portamento, velocityToAmp, midiSrcIds, permanent, verbose, rates, prependArgs, variants, metadata);
 		^a.initMIDISynthDefFX(fxGraphFunc, fxCCMap, server, numChannels);
 	}
 
